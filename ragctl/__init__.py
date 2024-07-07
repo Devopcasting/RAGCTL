@@ -12,14 +12,16 @@ __version__ = "0.1.0"
     DB_WRITE_ERROR,
     JSON_ERROR,
     ID_ERROR,
-    DOC_PATH_ERROR
-) = range(8)
+    DOC_PATH_ERROR,
+    DOC_DUPLICATE_ERROR
+) = range(9)
 
 ERRORS = {
     DIR_ERROR: "config directory error",
     FILE_ERROR: "config file error",
     DB_READ_ERROR: "database read error",
     DB_WRITE_ERROR: "database write error",
-    ID_ERROR: "ragctl id error",
-    DOC_PATH_ERROR: "documents path not found"
+    ID_ERROR: "document id error",
+    DOC_PATH_ERROR: "documents path not found",
+    DOC_DUPLICATE_ERROR: "duplicate document"
 }

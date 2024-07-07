@@ -12,6 +12,7 @@ from rich.table import Table
 
 app = typer.Typer()
 
+# Command: initialize the database
 @app.command()
 def init(
     db_path: str = typer.Option(
@@ -56,7 +57,8 @@ def get_ragdocs() -> ragctl.RagDocer:
             fg=typer.colors.RED,
         )
         raise typer.Exit(1)
-
+    
+# Command: Upload the list of documents
 @app.command()
 def upload(
     documents_path: List[str] = typer.Argument(...)
@@ -75,6 +77,27 @@ def upload(
             fg=typer.colors.GREEN
         )
 
+# Command: Perform embeddings on the document id
+@app.command(name="embed")
+def embed(
+    doc_id: str = typer.Argument(..., help="ID of the document to embed")
+) -> None:
+    """Perform embeddings on the document id"""
+    ragdocer = get_ragdocs()
+    ragdocer, error = ragdocer.embed_document(doc_id)
+    if error:
+        typer.secho(
+            f'Embedding document failed with "{ERRORS[error]}"',
+            fg=typer.colors.RED
+        )
+        raise typer.Exit(1)
+    else:
+        typer.secho(
+            f"""ragctl: "{ragdocer['name']}" was embedded successfully""",
+            fg=typer.colors.GREEN
+        )
+
+# Command: List all the uploaded documents
 @app.command(name="list")
 def list_all() -> None:
     """List all the documents uploaded"""
@@ -89,13 +112,73 @@ def list_all() -> None:
     table.add_column("ID", style="bold", width=6)
     table.add_column("Name", width=40)
     table.add_column("Size", width=10)
-    table.add_column("Embeded", width=5)
+    table.add_column("Embedded", width=9)
     for doc in documents:
-        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embeded"])
+        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embedded"])
     # Display the table
     console = Console()
     console.print(table)
+    typer.secho(
+        f'Total uploaded documents: {len(documents)}', fg=typer.colors.GREEN
+    )
 
+# Command: List only those documents which are not embedded
+@app.command(name="list-non-embedded")
+def list_non_embedded() -> None:
+    """List all the documents which are not embedded"""
+    ragdocer = get_ragdocs()
+    documents = ragdocer.get_non_embedded_documents()
+    if len(documents) == 0:
+        typer.secho(
+            'There are no documents in the database yet', fg=typer.colors.RED
+        )
+        raise typer.Exit()
+    table = Table(
+        title="RAG-CTL: All non-embedded documents", title_justify="left"
+    )
+    table.add_column("ID", style="bold", width=6)
+    table.add_column("Name", width=40)
+    table.add_column("Size", width=10)
+    table.add_column("Embedded", width=9)
+    for doc in documents:
+        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embedded"])
+    # Display the table
+    console = Console()
+    console.print(table)
+    typer.secho(
+        f'Total non-embedded documents: {len(documents)}',
+        fg=typer.colors.GREEN
+    )
+
+# Command: List only those documents which are embedded
+@app.command(name="list-embedded")
+def list_embedded() -> None:
+    """List all the documents which are embedded"""
+    ragdocer = get_ragdocs()
+    documents = ragdocer.get_embedded_documents()
+    if len(documents) == 0:
+        typer.secho(
+            'There are no documents in the database yet', fg=typer.colors.RED
+        )
+        raise typer.Exit()
+    table = Table(
+        title="RAG-CTL: All embedded documents", title_justify="left"
+    )
+    table.add_column("ID", style="bold", width=6)
+    table.add_column("Name", width=40)
+    table.add_column("Size", width=10)
+    table.add_column("Embedded", width=9)
+    for doc in documents:
+        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embedded"])
+    # Display the table
+    console = Console()
+    console.print(table)
+    typer.secho(
+        f'Total embedded documents: {len(documents)}',
+        fg=typer.colors.GREEN
+    )
+
+# Command: Clear all the database
 @app.command(name="clear")
 def remove_all(
     force: bool = typer.Option(
