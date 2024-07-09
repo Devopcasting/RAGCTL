@@ -252,28 +252,15 @@ def query(
     """Query PDF document"""
     ragdocer = get_ragdocs()
     results = ragdocer.query_documents(query)
-    if len(results) == 0:
+    if not results:
         typer.secho(
             'No matching documents found', fg=typer.colors.RED
         )
         raise typer.Exit()
-    table = Table(
-        title="RAG-CTL: Query results", title_justify="left"
-    )
-    table.add_column("ID", style="bold", width=6)
-    table.add_column("Name", width=40)
-    table.add_column("Size", width=10)
-    table.add_column("Embedded", width=9)
-    for doc in results:
-        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embedded"])
-    # Display the table
-    console = Console()
-    console.print(table)
     typer.secho(
-        f'Total matching documents: {len(results)}',
-        fg=typer.colors.GREEN
+        results, fg=typer.colors.GREEN
     )
-    
+
 def _version_callback(value: bool) -> None:
     if value:
         typer.echo(f"{__app_name__} v{__version__}")
