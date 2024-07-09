@@ -4,6 +4,7 @@
 from typing import Optional, List
 from pathlib import Path
 import typer
+import re
 from ragctl import (
     __app_name__, __version__, ERRORS, config, model, ragctl
 )
@@ -39,6 +40,45 @@ def init(
         raise typer.Exit(1)
     else:
         typer.secho(f"The RAGCTL database is {db_path}", fg=typer.colors.GREEN)
+
+def validate_aws_access_key_id(value: str):
+    if len(value) != 20 or not re.match(r'^[A-Za-z0-9]+$', value):
+        raise typer.BadParameter("AWS Access Key ID must be 20 alphanumeric characters long.")
+    return value
+
+def validate_aws_secret_access_key(value: str):
+    if len(value) != 40 or not re.match(r'^[A-Za-z0-9]+$', value):
+        raise typer.BadParameter("AWS Secret Access Key must be 40 alphanumeric characters long.")
+    return value
+
+# Command: initialize aws credentials
+@app.command()
+def aws_config(
+    aws_access_key_id: str = typer.Option(
+        str(), "--aws-access-key-id", prompt="AWS Access Key ID", help="AWS Access Key ID", callback=validate_aws_access_key_id
+    ),
+    aws_secret_access_key: str = typer.Option(
+        str(), "--aws-secret-access-key", prompt="AWS Secret Access Key", help="AWS Secret Access Key", hide_input=True, callback=validate_aws_secret_access_key
+    ),
+    aws_region: str = typer.Option(
+        "us-east-1","--aws-region", prompt="AWS Region", help="AWS Region", show_default=True
+    )
+) -> None:
+    """Initialize the aws credentials"""
+    aws_init_error = config.init_aws(
+        aws_access_key_id, aws_secret_access_key, aws_region
+    )
+    if aws_init_error:
+        typer.secho(
+            f'Creating aws credentials failed with "{ERRORS[aws_init_error]}"',
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(1)
+    else:
+        typer.secho(
+            "AWS credentials initialized successfully",
+            fg=typer.colors.GREEN
+        )
 
 def get_ragdocs() -> ragctl.RagDocer:
     if config.CONFIG_FILE_PATH.exists():
@@ -80,7 +120,7 @@ def upload(
 # Command: Perform embeddings on the document id
 @app.command(name="embed")
 def embed(
-    doc_id: str = typer.Argument(..., help="ID of the document to embed")
+    doc_id: int = typer.Argument(..., help="ID of the document to embed")
 ) -> None:
     """Perform embeddings on the document id"""
     ragdocer = get_ragdocs()
@@ -96,11 +136,11 @@ def embed(
             f"""ragctl: "{ragdocer['name']}" was embedded successfully""",
             fg=typer.colors.GREEN
         )
-
+        
 # Command: List all the uploaded documents
 @app.command(name="list")
 def list_all() -> None:
-    """List all the documents uploaded"""
+    """List all the uploaded documents"""
     ragdocer = get_ragdocs()
     documents = ragdocer.get_documents_list()
     if len(documents) == 0:
@@ -108,7 +148,7 @@ def list_all() -> None:
             'There are no documents in the database yet', fg=typer.colors.RED
         )
         raise typer.Exit()
-    table = Table(title="RAG-CTL: All uploaded documents", title_justify="left")
+    table = Table(title_justify="left")
     table.add_column("ID", style="bold", width=6)
     table.add_column("Name", width=40)
     table.add_column("Size", width=10)
@@ -203,7 +243,37 @@ def remove_all(
             )
     else:
         typer.echo("Operation canceled")
-        
+
+# Command: Query PDF document
+@app.command(name="query")
+def query(
+    query: str = typer.Argument(..., help="Query to search for in the documents")
+) -> None:
+    """Query PDF document"""
+    ragdocer = get_ragdocs()
+    results = ragdocer.query_documents(query)
+    if len(results) == 0:
+        typer.secho(
+            'No matching documents found', fg=typer.colors.RED
+        )
+        raise typer.Exit()
+    table = Table(
+        title="RAG-CTL: Query results", title_justify="left"
+    )
+    table.add_column("ID", style="bold", width=6)
+    table.add_column("Name", width=40)
+    table.add_column("Size", width=10)
+    table.add_column("Embedded", width=9)
+    for doc in results:
+        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embedded"])
+    # Display the table
+    console = Console()
+    console.print(table)
+    typer.secho(
+        f'Total matching documents: {len(results)}',
+        fg=typer.colors.GREEN
+    )
+    
 def _version_callback(value: bool) -> None:
     if value:
         typer.echo(f"{__app_name__} v{__version__}")
