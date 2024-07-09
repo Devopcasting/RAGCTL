@@ -11,6 +11,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings.bedrock import BedrockEmbeddings
 from langchain.schema.document import Document
 from langchain.prompts import ChatPromptTemplate
+from langchain_community.llms.ollama import Ollama
 import os
 import random
 import shutil
@@ -263,16 +264,8 @@ class RagDocer:
             chunk.metadata['id'] = chunk_id
         return chunks
     
-    # AWS Bedrock Embedding
-    def _aws_bedrock_embedding(self):
-        """Perform AWS Bedrock Embedding"""
-        aws_bedrock_embedding = BedrockEmbeddings(
-            credentials_profile_name="default", region_name="us-east-1"
-        )
-        return aws_bedrock_embedding
-    
     # Query the documents
-    def query_documents(self, query: str, k: int = 5) -> List[Document]:
+    def query_documents(self, query: str, k: int = 5) -> str:
         # Create a Prompt template for Context and Question
         PROMPT_TEMPLATE = """
         Answer based on context: {context}
@@ -283,7 +276,33 @@ class RagDocer:
         """Query the documents"""
         db = Chroma(
             embedding_function=self._aws_bedrock_embedding(),
-            persist_directory=self.vectordb_folder
+            persist_directory=f"{self.vectordb_folder}"
         )
-        docs = db.as_retriever().get_relevant_documents(query, k=k)
-        return docs
+        # Search the DB
+        results = db.similarity_search_with_score(query, k=k)
+        
+        context_text = "\n\n---\n\n".join([doc.page_content for doc, _ in results])
+        prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
+        prompt = prompt_template.format_messages(context=context_text, question=query)
+        model = Ollama(model="mistral")
+        response_text = model.invoke(prompt)
+        source = [doc.metadata.get("id", None) for doc, _ in results]
+        formated_response = f"""
+        Context: {context_text}
+
+        Question: {query}
+
+        Answer: {response_text}
+
+        Source: {source}
+        """
+        return formated_response
+    
+    # AWS Bedrock Embedding
+    def _aws_bedrock_embedding(self):
+        """Perform AWS Bedrock Embedding"""
+        aws_bedrock_embedding = BedrockEmbeddings(
+            credentials_profile_name="default", region_name="us-east-1"
+        )
+        return aws_bedrock_embedding
+    
