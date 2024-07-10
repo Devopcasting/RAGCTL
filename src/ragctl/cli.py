@@ -123,7 +123,7 @@ def upload(documents_path: List[str] = typer.Argument(..., help="Path to the PDF
                 )
 
 # Command: Perform embeddings on the document id
-@app.command(name="embed")
+@app.command(name="embedding")
 def embed(
     doc_id: int = typer.Argument(..., help="ID of the document to embed")
 ) -> None:
