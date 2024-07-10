@@ -12,11 +12,13 @@ from langchain_community.embeddings.bedrock import BedrockEmbeddings
 from langchain.schema.document import Document
 from langchain.prompts import ChatPromptTemplate
 from langchain_community.llms.ollama import Ollama
+import boto3
 import os
 import random
 import shutil
 import hashlib
 import PyPDF2
+import boto3
 
 class CurrentDoc(NamedTuple):
     rag: Dict[str, Any]
@@ -32,55 +34,60 @@ class RagDocer:
     
     def upload_doc(self, doc_paths: List[str]) -> CurrentDoc:
         try:
-            """Add a new uploaded doc to the database"""
-            # Check if file path in the list exists
+            result = []
             for doc_path in doc_paths:
-                doc_info_dict = {}
+                # Uploaded document information dictionary
+                uploaded_docs_dict = {}
+                # Check if the document path exists
                 if not os.path.exists(doc_path):
-                    # Return an error if the file path does not exist.
-                    return CurrentDoc({}, DOC_PATH_ERROR)
-                # Generate a random 4 digit number for the document
+                    result.append({"doc_path": f"{doc_path}", "status": 0, "message": f"document doesn't exists"})
+                    continue
+                # Generate a 4 digit random number for the document
                 doc_id = self._generate_doc_id()
                 # Document name
                 doc_name = os.path.basename(doc_path)
                 # Document size
                 doc_size = self._get_documents_size(doc_path)
                 # Document MD5SUM
-                md5sum = self._calculate_md5sum(doc_path)
-                # Check if md5sum of the document already exists
-                if md5sum in [doc["md5sum"] for doc in self.get_documents_list()]:
-                    return CurrentDoc({}, DOC_DUPLICATE_ERROR)
-                # Check if document is a valid pdf file
+                doc_md5sum = self._calculate_md5sum(doc_path)
+                # Check if the MD5SUM is already present in the database
+                read = self._db_handler.read_ragdocs()
+                if any(doc["md5sum"] == doc_md5sum for doc in read.ragdoc_list):
+                    result.append({"doc_path": f"{doc_path}", "status": 0, "message": f"already exists in the database"})
+                    continue
+                # Check if the document is a valid PDF
                 if not self._is_valid_pdf(doc_path):
-                    return CurrentDoc({}, INVALID_PDF_FILE)
-                
-                doc_info_dict = {
+                    result.append({"doc_path": f"{doc_path}", "status": 0, "message": f"is not a valid PDF document"})
+                    continue
+                # Prepare document information
+                uploaded_docs_dict = {
                     "id": doc_id,
                     "name": doc_name,
                     "size": doc_size,
-                    "embedded": "False",
-                    "md5sum": md5sum,
-                    "path": f"{self.data_folder}/{doc_id}/{doc_name}"
+                    "md5sum": doc_md5sum,
+                    "status": 1,
+                    "message": "Document uploaded successfully.",
+                    "embedding": "False",
+                    "doc_path": f"{self.data_folder}/{doc_id}/{doc_name}"
                 }
+                # Read DB handler
                 read = self._db_handler.read_ragdocs()
-                if read.error == DB_READ_ERROR:
-                    return CurrentDoc(doc_info_dict, read.error)
-                read.ragdoc_list.append(doc_info_dict)
+                if read.error:
+                    return CurrentDoc({}, DB_READ_ERROR)
+                read.ragdoc_list.append(uploaded_docs_dict)
+                # Write DB handler
                 write = self._db_handler.write_ragdocs(read.ragdoc_list)
                 if write.error:
-                    return CurrentDoc(doc_info_dict, write.error)
-                
-                # Create the id folder inside data
-                if not os.path.exists(self.data_folder / str(doc_id)):
-                    os.makedirs(self.data_folder / str(doc_id))
-
-                # Copy the document to the id folder inside data
-                shutil.copy(doc_path, self.data_folder / str(doc_id))
-            #return CurrentDoc(doc_info_dict, write.error)
-            return CurrentDoc(doc_info_dict, SUCCESS)
+                    return CurrentDoc({}, DB_READ_ERROR)
+                # Create a directory with the document id as the name
+                os.makedirs(f"{self.data_folder}/{doc_id}", exist_ok=True)
+                # Copy the document to the data folder
+                shutil.copy(doc_path, f"{self.data_folder}/{doc_id}/{doc_name}")
+                result.append({"doc_path": f"{doc_path}", "status": 1, "message": "was uploaded successfully."})
+            return CurrentDoc(result, SUCCESS)
         except Exception as error:
-            return CurrentDoc({}, error) 
-    
+            return CurrentDoc({}, DB_READ_ERROR)
+        
     # Check if the document is valid PDF
     def _is_valid_pdf(self, doc_path: str) -> bool:
         """Check if the document is a valid PDF"""
@@ -134,6 +141,36 @@ class RagDocer:
                 shutil.rmtree(self.data_folder / file)
         
         return CurrentDoc({}, write.error)
+    
+    # Delete a particular document
+    def delete_document(self, doc_id: int) -> CurrentDoc:
+        try:
+            """Delete a particular document"""
+            read = self._db_handler.read_ragdocs()
+            if read.error == DB_READ_ERROR:
+                return CurrentDoc({}, DB_READ_ERROR)
+
+            # Check if the document id already exists
+            doc_id_found = False
+            for doc in read.ragdoc_list:
+                if doc["id"] == doc_id:
+                    doc_id_found = True
+                    break
+            if not doc_id_found:
+                return CurrentDoc({}, ID_ERROR)
+
+            # Delete the document from the database
+            result = [doc for doc in read.ragdoc_list if doc["id"] != doc_id]
+            write = self._db_handler.write_ragdocs(result)
+            if write.error:
+                return CurrentDoc({}, write.error)
+
+            # Delete the document folder from the data folder
+            shutil.rmtree(f"{self.data_folder}/{doc_id}")
+            return CurrentDoc({}, SUCCESS)
+        except Exception as error:
+            print(error)
+            return CurrentDoc({}, DB_READ_ERROR)
     
     # Get the list of documents which are not embedded
     def get_non_embedded_documents(self) -> List[Dict[str, Any]]:
@@ -301,8 +338,12 @@ class RagDocer:
     # AWS Bedrock Embedding
     def _aws_bedrock_embedding(self):
         """Perform AWS Bedrock Embedding"""
+        bedrock_client = boto3.client(
+            service_name='bedrock-runtime',
+            region_name='us-east-1',
+        )
         aws_bedrock_embedding = BedrockEmbeddings(
-            credentials_profile_name="default", region_name="us-east-1"
+            credentials_profile_name="default", region_name="us-east-1", model_id="amazon.titan-embed-text-v1", client=bedrock_client
         )
         return aws_bedrock_embedding
     

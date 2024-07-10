@@ -64,7 +64,7 @@ def aws_config(
         "us-east-1","--aws-region", prompt="AWS Region", help="AWS Region", show_default=True
     )
 ) -> None:
-    """Initialize the aws credentials"""
+    """Configure aws credentials"""
     aws_init_error = config.init_aws(
         aws_access_key_id, aws_secret_access_key, aws_region
     )
@@ -100,10 +100,8 @@ def get_ragdocs() -> ragctl.RagDocer:
     
 # Command: Upload the list of documents
 @app.command()
-def upload(
-    documents_path: List[str] = typer.Argument(...)
-) -> None:
-    """Upload the new list of documents"""
+def upload(documents_path: List[str] = typer.Argument(..., help="Path to the PDF documents")) -> None:
+    """Upload PDF documents"""
     ragdocer = get_ragdocs()
     ragdocer, error = ragdocer.upload_doc(documents_path)
     if error:
@@ -112,10 +110,17 @@ def upload(
         )
         raise typer.Exit(1)
     else:
-        typer.secho(
-            f"""ragctl: "{ragdocer['name']}" was added successfully""",
-            fg=typer.colors.GREEN
-        )
+        for result in ragdocer:
+            if result["status"] == 1:
+                typer.secho(
+                    f"""ragctl: "{result['doc_path']}" was uploaded successfully""",
+                    fg=typer.colors.GREEN
+                )
+            else:
+                typer.secho(
+                    f'ragctl: "{result["doc_path"]}" failed with "{result["message"]}"',
+                    fg=typer.colors.RED
+                )
 
 # Command: Perform embeddings on the document id
 @app.command(name="embed")
@@ -152,9 +157,9 @@ def list_all() -> None:
     table.add_column("ID", style="bold", width=6)
     table.add_column("Name", width=40)
     table.add_column("Size", width=10)
-    table.add_column("Embedded", width=9)
+    table.add_column("Embedding", width=9)
     for doc in documents:
-        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embedded"])
+        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embedding"])
     # Display the table
     console = Console()
     console.print(table)
@@ -181,7 +186,7 @@ def list_non_embedded() -> None:
     table.add_column("Size", width=10)
     table.add_column("Embedded", width=9)
     for doc in documents:
-        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embedded"])
+        table.add_row(str(doc["id"]), doc["name"], doc["size"], doc["embedding"])
     # Display the table
     console = Console()
     console.print(table)
@@ -244,12 +249,32 @@ def remove_all(
     else:
         typer.echo("Operation canceled")
 
+# Command: Delete a particular document
+@app.command(name="delete")
+def remove(
+    doc_id: int = typer.Argument(..., help="ID of the document to delete")
+) -> None:
+    """Delete a particular document from the database"""
+    ragdocer = get_ragdocs()
+    error = ragdocer.delete_document(doc_id).error
+    if error:
+        typer.secho(
+            f'Deleting document failed with "{ERRORS[error]}"',
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(1)
+    else:
+        typer.secho(
+            f'ragctl: Document with ID "{doc_id}" has been deleted',
+            fg=typer.colors.GREEN
+        )
+
 # Command: Query PDF document
 @app.command(name="query")
 def query(
     query: str = typer.Argument(..., help="Query to search for in the documents")
 ) -> None:
-    """Query PDF document"""
+    """Ask questions to embedded PDF document"""
     ragdocer = get_ragdocs()
     results = ragdocer.query_documents(query)
     if not results:
@@ -263,7 +288,7 @@ def query(
 
 def _version_callback(value: bool) -> None:
     if value:
-        typer.echo(f"{__app_name__} v{__version__}")
+        typer.echo(f"{__app_name__} v{__version__} (Chat with PDF)")
         raise typer.Exit()
 
 @app.callback()

@@ -14,6 +14,10 @@ CONFIG_DIR_PATH = Path(typer.get_app_dir(__app_name__))
 if not CONFIG_DIR_PATH.exists():
     CONFIG_DIR_PATH.mkdir(parents=True, exist_ok=True)
 CONFIG_FILE_PATH = CONFIG_DIR_PATH / "config.ini"
+# Set AWS Credential file path
+AWS_CREDENTIAL_FILE_PATH = Path(typer.get_app_dir(__app_name__)) / ".aws" / "credentials"
+# Set AWS Config file path
+AWS_CONFIG_FILE_PATH = Path(typer.get_app_dir(__app_name__)) / ".aws" / "config"
 
 def init_app(db_path: str) -> int:
     """Initialize the application"""
