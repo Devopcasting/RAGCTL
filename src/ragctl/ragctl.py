@@ -212,7 +212,6 @@ class RagDocer:
         
             # Load the PDF document
             doc_path = f"{self.data_folder}/{str(doc_id)}/{doc['name']}"
-            print(doc_path)
             pages = self._load_pdf_document(doc_path)
 
             # Split the PDF document into chunks
@@ -275,7 +274,7 @@ class RagDocer:
             db.add_documents(new_chunks,ids=new_chunk_ids)
             db.persist()
         else:
-            pass
+             print("✅ No new documents to add")
         return SUCCESS
     
     # Calculate chunk id's
