@@ -283,7 +283,7 @@ def query(
         )
         raise typer.Exit()
     typer.secho(
-        results, fg=typer.colors.GREEN
+        results, fg=typer.colors.BRIGHT_WHITE
     )
 
 def _version_callback(value: bool) -> None:
