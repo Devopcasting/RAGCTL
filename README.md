@@ -22,7 +22,7 @@ Prerequisites
 * pip package manager
 * AWS Bedrock Embedding credentials
 * Chroma DB
-* OLLAMA model
+* OLLAMA model (mistral)
 
 Installation
 1. Clone the repository: git clone https://github.com/Devopcasting/RAGCTL
