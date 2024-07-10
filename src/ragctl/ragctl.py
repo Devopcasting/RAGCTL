@@ -31,7 +31,7 @@ class RagDocer:
         self.data_folder = Path(__file__).parent / "data"
         # Set the vectordb folder path
         self.vectordb_folder = Path(__file__).parent / "vectordb"
-    
+
     def upload_doc(self, doc_paths: List[str]) -> CurrentDoc:
         try:
             result = []
@@ -178,7 +178,7 @@ class RagDocer:
         read = self._db_handler.read_ragdocs()
         if read.error == DB_READ_ERROR:
             return []
-        return [doc for doc in read.ragdoc_list if doc["embedded"] == "False"]
+        return [doc for doc in read.ragdoc_list if doc["embedding"] == "False"]
     
     # Get the list of documents which are embedded
     def get_embedded_documents(self) -> List[Dict[str, Any]]:
@@ -186,7 +186,7 @@ class RagDocer:
         read = self._db_handler.read_ragdocs()
         if read.error == DB_READ_ERROR:
             return []
-        return [doc for doc in read.ragdoc_list if doc["embedded"] == "True"]
+        return [doc for doc in read.ragdoc_list if doc["embedding"] == "True"]
     
     # Perform embedding on a document
     def embed_document(self, doc_id: int) -> CurrentDoc:
@@ -207,11 +207,12 @@ class RagDocer:
                 return CurrentDoc({}, ID_ERROR)
         
             # Check if the document is already embedded
-            if doc["embedded"] == "True":
+            if doc["embedding"] == "True":
                 return CurrentDoc(doc, DOC_ALREADY_EMBEDDED)
         
             # Load the PDF document
             doc_path = f"{self.data_folder}/{str(doc_id)}/{doc['name']}"
+            print(doc_path)
             pages = self._load_pdf_document(doc_path)
 
             # Split the PDF document into chunks
@@ -221,12 +222,13 @@ class RagDocer:
             self._add_pdf_data_to_chroma(chunks, f"{self.vectordb_folder}")
 
             # Change the embedded status to True
-            doc["embedded"] = "True"
+            doc["embedding"] = "True"
             write = self._db_handler.write_ragdocs(read.ragdoc_list)
             if write.error:
                 return CurrentDoc(doc, write.error)
             return CurrentDoc(doc, SUCCESS)
         except Exception as error:
+            print(error)
             return CurrentDoc({}, EMBEDDING_ERROR)
     
     # Load PDF document
@@ -325,13 +327,11 @@ class RagDocer:
         response_text = model.invoke(prompt)
         source = [doc.metadata.get("id", None) for doc, _ in results]
         formated_response = f"""
-        Context: {context_text}
+Question: {query}
 
-        Question: {query}
+Answer: {response_text}
 
-        Answer: {response_text}
-
-        Source: {source}
+Source: {source}
         """
         return formated_response
     
