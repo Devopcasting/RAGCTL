@@ -12,6 +12,7 @@ __version__ = "0.1.0"
     DB_WRITE_ERROR,
     JSON_ERROR,
     ID_ERROR,
+    UPLOAD_DOC_ERROR,
     DOC_PATH_ERROR,
     DOC_DUPLICATE_ERROR,
     DOC_ALREADY_EMBEDDED,
@@ -19,7 +20,7 @@ __version__ = "0.1.0"
     AWS_CONFIG_ERROR,
     AWS_KEY_ERROR,
     EMBEDDING_ERROR
-) = range(14)
+) = range(15)
 
 ERRORS = {
     DIR_ERROR: "config directory error",
@@ -27,6 +28,8 @@ ERRORS = {
     DB_READ_ERROR: "database read error",
     DB_WRITE_ERROR: "database write error",
     ID_ERROR: "document id not found",
+    UPLOAD_DOC_ERROR: "upload document error",
+    JSON_ERROR: "json format error",
     DOC_PATH_ERROR: "documents path not found",
     DOC_DUPLICATE_ERROR: "duplicate document",
     DOC_ALREADY_EMBEDDED: "document already embedded",
