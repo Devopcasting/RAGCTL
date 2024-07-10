@@ -11,7 +11,7 @@ from ragctl import (
 from rich.console import Console
 from rich.table import Table
 
-app = typer.Typer()
+app = typer.Typer(help="Retrieval Augmented Generation (RAG) AI CLI")
 
 # Command: initialize the database
 @app.command()
