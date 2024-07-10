@@ -18,11 +18,11 @@ Large Language Model (LLM)
 
 ## Getting Started
 Prerequisites
-* Python 3.8 or later
+* Python 3.10 or later
 * pip package manager
 * AWS Bedrock Embedding credentials
-* Chroma DB credentials
-* OLLAMA model credentials
+* Chroma DB
+* OLLAMA model
 
 Installation
 1. Clone the repository: git clone https://github.com/Devopcasting/RAGCTL
