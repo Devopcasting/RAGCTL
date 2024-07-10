@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "example_package_YOUR_USERNAME_HERE"
+version = "0.1.0"
+authors = [
+  { name="Prashant Pokhriyal", email="devopcasting@gmail.com" },
+]
+description = "A Command Line utility for RAG. Ask questions to PDF document"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Linux, MacOSX",
+]
+
+[project.urls]
+Homepage = "https://github.com/Devopcasting/RAGCTL"
+Issues = "https://github.com/Devopcasting/RAGCTL/issues"
