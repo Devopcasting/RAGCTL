@@ -58,7 +58,7 @@ def aws_config(
         str(), "--aws-access-key-id", prompt="AWS Access Key ID", help="AWS Access Key ID", callback=validate_aws_access_key_id
     ),
     aws_secret_access_key: str = typer.Option(
-        str(), "--aws-secret-access-key", prompt="AWS Secret Access Key", help="AWS Secret Access Key", hide_input=True, callback=validate_aws_secret_access_key
+        str(), "--aws-secret-access-key", prompt="AWS Secret Access Key", help="AWS Secret Access Key", callback=validate_aws_secret_access_key
     ),
     aws_region: str = typer.Option(
         "us-east-1","--aws-region", prompt="AWS Region", help="AWS Region", show_default=True
